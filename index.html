@@ -3,15 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>EPT 在线版（兼容版）</title>
+  <title>EPT 在线版（国内可运行）</title>
 
-  <!-- ✅ 使用 jsPsych 的 UMD 构建版本，可直接运行 -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jspsych/jsPsych@7.3.3/dist/jspsych.css">
-  <script src="https://cdn.jsdelivr.net/gh/jspsych/jsPsych@7.3.3/dist/jspsych.js"></script>
-
-  <!-- ✅ 插件用 UMD 构建版本 -->
-  <script src="https://cdn.jsdelivr.net/gh/jspsych/jsPsych@7.3.3/dist/plugins/jspsych-html-keyboard-response.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/jspsych/jsPsych@7.3.3/dist/plugins/jspsych-html-button-response.js"></script>
+  <!-- ✅ 改用国内镜像，非模块版 jsPsych -->
+  <link rel="stylesheet" href="https://fastly.jsdelivr.net/npm/jspsych@7.3.3/css/jspsych.css" />
+  <script src="https://fastly.jsdelivr.net/npm/jspsych@7.3.3/dist/jspsych.js"></script>
+  <script src="https://fastly.jsdelivr.net/npm/@jspsych/plugin-html-button-response@1.2.0"></script>
+  <script src="https://fastly.jsdelivr.net/npm/@jspsych/plugin-html-keyboard-response@1.2.0"></script>
 
   <style>
     body { background:#fafafa; }
@@ -26,21 +24,20 @@
   <script>
   window.addEventListener('load', function() {
 
-    // 检查 jsPsych 是否加载成功
     if (typeof initJsPsych === "undefined") {
-      document.body.innerHTML = "<h2 style='color:red;text-align:center;margin-top:100px'>⚠️ jsPsych 未加载成功，请检查网络或稍后重试。</h2>";
+      document.body.innerHTML = "<h2 style='color:red;text-align:center;margin-top:100px'>⚠️ jsPsych 未加载成功，请尝试更换网络或使用 Chrome。</h2>";
       return;
     }
 
     const jsPsych = initJsPsych({
       display_element: 'jspsych-target',
-      on_finish: ()=>{ alert("✅ jsPsych 运行成功！"); }
+      on_finish: ()=>{ alert("✅ jsPsych 成功运行！"); }
     });
 
     const timeline = [
       {
         type: jsPsychHtmlButtonResponse,
-        stimulus: "<h2>欢迎参加 EPT 实验</h2><p>点击继续测试 jsPsych</p>",
+        stimulus: "<h2>欢迎参加 EPT 实验</h2><p>点击继续</p>",
         choices: ["继续"]
       }
     ];
