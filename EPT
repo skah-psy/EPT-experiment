@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EPT 在线版（jsPsych 7）</title>
+  <!-- jsPsych 核心与样式 -->
+  <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.3/css/jspsych.css" />
+  <script src="https://unpkg.com/jspsych@7.3.3/dist/jspsych.js"></script>
+  <!-- 常用插件 -->
+  <script src="https://unpkg.com/@jspsych/plugin-preload@1.2.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.2.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.2.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.2.0"></script>
+  <style>
+    body { background:#fafafa; }
+    .center { display:flex; align-items:center; justify-content:center; height:100vh; }
+    .stim { font-family: 'SimSun','宋体',serif; font-size:30px; color:#000; font-weight:normal; }
+  </style>
+</head>
+<body>
+<div id="jspsych-target"></div>
+<script>
+// ===== 0) 基本参数 =====
+const PARAMS = {
+  prime_ms: 200,     // Prime 呈现时长（ms）
+  isi_ms: 100,       // ISI 时长（ms）
+  target_ms: null,   // Target 呈现上限（null=无限制，直到按键）
+  keys: { positive: 'f', negative: 'j' }, // F=积极, J=消极
+};
+
+// ===== 1) 受试者信息 =====
+const PID = jsPsych?.data?.getURLVariable?.('id') ||
+            (Math.random().toString(36).slice(2,8) + Date.now().toString().slice(-6));
+
+// ===== 2) 刺激与条件（请将你的词表粘贴到下方数组） =====
+const PRACTICE_TRIALS = [
+  // 示例：{ prime:'我的名字', target:'美好', valence:'positive', block:'self' },
+  // 示例：{ prime:'我喜欢篮球', target:'糟糕', valence:'negative', block:'object' },
+];
+
+const MAIN_TRIALS = [
+  // 将正式实验的 trial 列表粘贴到这里
+];
+
+// ===== 3) 小工具 =====
+function makePrimeTrial(t){
+  return {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `<div class="center"><div class="stim">${jsPsych.utils.escapeHtml(t.prime)}</div></div>`,
+    choices: 'NO_KEYS',
+    trial_duration: PARAMS.prime_ms,
+    data: {phase:t.phase, block:t.block||null, kind:'prime', prime:t.prime, target:t.target, valence:t.valence}
+  };
+}
+
+function makeISI(){
+  return {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `<div class="center"><div class="stim">+</div></div>`,
+    choices: 'NO_KEYS',
+    trial_duration: PARAMS.isi_ms,
+    data: {kind:'isi'}
+  };
+}
+
+function makeTargetTrial(t){
+  const cresp = PARAMS.keys[t.valence];
+  return {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `<div class="center"><div class="stim">${jsPsych.utils.escapeHtml(t.target)}</div></div>`,
+    choices: Object.values(PARAMS.keys),
+    trial_duration: PARAMS.target_ms,
+    data: {
+      phase: t.phase,
+      block: t.block||null,
+      kind: 'target',
+      prime: t.prime,
+      target: t.target,
+      valence: t.valence,
+      cresp: cresp
+    },
+    on_finish: (data)=>{
+      data.pid = PID;
+      data.correct = jsPsych.pluginAPI.compareKeys(data.response, data.cresp);
+    }
+  };
+}
+
+function trialsFromList(list, phase){
+  const seq = [];
+  jsPsych.randomization.shuffle(list).forEach(t=>{
+    const tt = {...t, phase};
+    seq.push(makePrimeTrial(tt));
+    seq.push(makeISI());
+    seq.push(makeTargetTrial(tt));
+  });
+  return seq;
+}
+
+function downloadCSV(filename, text) {
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// ===== 4) 流程编排 =====
+const timeline = [];
+
+const jsPsych = initJsPsych({
+  display_element: 'jspsych-target',
+  on_finish: ()=>{ /* 留空 */ }
+});
+
+// 欢迎页
+timeline.push({
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `<h2>欢迎参加 EPT 实验</h2>
+             <p class='stim'>设备：台式/笔记本 + 最新 Chrome/Firefox。反应键：F=积极，J=消极。</p>
+             <p class='stim'>请尽量又快又准。</p>`,
+  choices: ['继续'],
+  on_finish: ()=>{ jsPsych.data.addProperties({pid: PID}); }
+});
+
+// 练习阶段（可选）
+if(PRACTICE_TRIALS.length){
+  timeline.push({
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<h3>练习开始</h3><p class='stim'>按提示完成若干练习试次。</p>`,
+    choices: ['开始练习']
+  });
+  timeline.push(...trialsFromList(PRACTICE_TRIALS, 'practice'));
+}
+
+// 正式实验
+if(MAIN_TRIALS.length){
+  timeline.push({
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<h3>正式实验</h3><p class='stim'>请保持专注，F=积极，J=消极。</p>`,
+    choices: ['开始']
+  });
+  timeline.push(...trialsFromList(MAIN_TRIALS, 'main'));
+}
+
+// ===== 5) 结束页：下载 + 上传 =====
+timeline.push({
+  type: jsPsychHtmlButtonResponse,
+  stimulus: ()=>`<h3>实验结束，感谢参与！</h3>
+                 <p class='stim'>被试编号：<b>${PID}</b></p>
+                 <p class='stim'>点击按钮下载数据并上传。</p>`,
+  choices: ['下载并上传数据'],
+  on_finish: ()=>{
+    const csv = jsPsych.data.get().csv();
+
+    // 本地备份
+    downloadCSV(`EPT_${PID}.csv`, csv);
+
+    // 构建上传数据
+    const payload = {
+      pid: PID,
+      full_data: csv
+    };
+
+    // 上传到 Google Apps Script
+    fetch('https://script.google.com/macros/s/AKfycbxpBh9hixi1gqoXuzWKqEUEBglGBp_tFSYVvoEjd5eOJZIiT131-8afcE5yI-fnpHW/exec', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.text())
+    .then(txt => {
+      console.log("✅ 上传成功:", txt);
+      alert("实验完成，数据已自动上传到服务器！");
+    })
+    .catch(err => {
+      console.error("❌ 上传失败:", err);
+      alert("⚠️ 数据上传失败，请截图联系实验负责人。");
+    });
+  }
+});
+
+// 运行实验
+jsPsych.run(timeline);
+</script>
+</body>
+</html>
